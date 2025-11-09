@@ -6,6 +6,8 @@ const listingSchema = new mongoose.Schema(
     description: String,
     category: String, // e.g. Shoes, Clothes
     categorySlug: String,
+    subCategory: String, // e.g. Sneakers, Dresses
+    subCategorySlug: String,
     brand: String, // e.g. Nike, Adidas
     brandSlug: String,
 

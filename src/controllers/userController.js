@@ -1,6 +1,8 @@
 import User from "../models/User.js";
+import Listing from "../models/Listing.js";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
+import axios from "axios";
 
 export const registerUser = async (req, res) => {
   const { name, email, password } = req.body;
@@ -66,6 +68,8 @@ export const getBag = async (req, res) => {
   try {
     const user = await User.findById(req.user.id).populate("bag.listing");
     res.json(user.bag);
+
+    // console.log(object)
   } catch (err) {
     res.status(500).json({ error: "Failed to fetch bag" });
   }
@@ -107,34 +111,98 @@ export const removeFromBag = async (req, res) => {
 };
 
 export const getProfile = async (req, res) => {
-  const user = await User.findById(req.user.id).select("-password");
-  res.json(user);
+  try {
+    const user = await User.findById(req.user.id).select("-password");
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    res.json(user);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+export const getInfluencerProfile = async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id).select("-password");
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const listings = await Listing.find({ seller: user._id });
+
+    res.json({ user, listings });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Server error" });
+  }
 };
 
 export const updateProfile = async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
+    if (!user) return res.status(404).json({ error: "User not found" });
 
-    if (!user) {
-      return res.status(404).json({ error: "User not found" });
+    // If multipart/form-data, shipping may arrive as a JSON string.
+    console.log(req.body);
+    let incomingShipping = req.body.shipping;
+    if (typeof incomingShipping === "string") {
+      try {
+        incomingShipping = JSON.parse(incomingShipping);
+      } catch {
+        // ignore parse error; treat as plain string or empty
+      }
     }
 
-    // Update shipping info if provided
-    if (req.body.shipping) {
-      user.shipping = {
-        ...user.shipping,
-        ...req.body.shipping, // merge old + new
-      };
+    // Merge shipping if provided
+    if (incomingShipping && typeof incomingShipping === "object") {
+      user.shipping = { ...(user.shipping || {}), ...incomingShipping };
     }
 
-    // Optionally allow updating name/email too
+    // Optional profile fields
     if (req.body.name) user.name = req.body.name;
     if (req.body.email) user.email = req.body.email;
 
+    // If an image file was uploaded, set/replace profileImage
+    if (req.file) {
+      // e.g., "/uploads/myfile-123.jpg"
+      user.profileImage = `/uploads/${req.file.filename}`;
+    }
+
     await user.save();
 
-    res.json(user); // return full profile without password
+    // Return user without password
+    const safe = user.toObject();
+    delete safe.password;
+    return res.json(safe);
   } catch (err) {
-    res.status(500).json({ error: "Failed to update profile" });
+    console.error(err);
+    return res.status(500).json({ error: "Failed to update profile" });
+  }
+};
+
+export const saveUserTypeGoogleForm = async (req, res) => {
+  try {
+    // console.log("🧾 Received body:", req.body);
+    const formData = req.body;
+
+    await axios.post(
+      "https://script.google.com/macros/s/AKfycbzdcg58LH0ZfAHs4mmFGUJ8bGBOQWWLvm9y9vS3_A_KVkoo0NFvEuFvQHV1oTTqhWKn/exec",
+      formData,
+      {
+        headers: { "Content-Type": "application/json" },
+      }
+    );
+
+    res
+      .status(200)
+      .json({ message: "Data saved to Google Sheet successfully" });
+  } catch (err) {
+    console.error("Google Sheets submission failed:", err.message);
+    res.status(500).json({ error: "Failed to save data to Google Sheet" });
   }
 };

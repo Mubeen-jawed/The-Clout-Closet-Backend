@@ -2,14 +2,17 @@ import Listing from "../models/Listing.js";
 import slugify from "slugify";
 
 export const getListings = async (req, res) => {
-  const listings = await Listing.find().populate("seller", "name email");
+  const listings = await Listing.find().populate(
+    "seller",
+    "name email profileImage socialMediaHandle"
+  );
   res.json(listings);
 };
 
 export const getListing = async (req, res) => {
   const listing = await Listing.findById(req.params.id).populate(
     "seller",
-    "name email"
+    "name email profileImage socialMediaHandle"
   );
   res.json(listing);
 };
@@ -20,6 +23,7 @@ export const createListing = async (req, res) => {
       title,
       description,
       category,
+      subCategory,
       brand,
       condition,
       fabric,
@@ -30,6 +34,7 @@ export const createListing = async (req, res) => {
     } = req.body;
 
     const categorySlug = slugify(category, { lower: true, strict: true });
+    const subCategorySlug = slugify(subCategory, { lower: true, strict: true });
     const brandSlug = slugify(brand, { lower: true, strict: true });
     // Store all image URLs
     const imageUrls = req.files.map((file) => `/uploads/${file.filename}`);
@@ -39,6 +44,8 @@ export const createListing = async (req, res) => {
       description,
       category,
       categorySlug,
+      subCategory,
+      subCategorySlug,
       brand,
       brandSlug,
       condition,
