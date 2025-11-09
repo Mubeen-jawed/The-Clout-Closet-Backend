@@ -4,6 +4,7 @@ import cors from "cors";
 import dotenv from "dotenv";
 import path from "path";
 import http from "http";
+import "./src/config/env.js";
 
 dotenv.config();
 

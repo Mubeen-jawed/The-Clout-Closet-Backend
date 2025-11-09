@@ -1,5 +1,6 @@
 import Listing from "../models/Listing.js";
 import slugify from "slugify";
+import { uploadBufferToR2 } from "../lib/upload.js";
 
 export const getListings = async (req, res) => {
   const listings = await Listing.find().populate(
@@ -36,8 +37,20 @@ export const createListing = async (req, res) => {
     const categorySlug = slugify(category, { lower: true, strict: true });
     const subCategorySlug = slugify(subCategory, { lower: true, strict: true });
     const brandSlug = slugify(brand, { lower: true, strict: true });
-    // Store all image URLs
-    const imageUrls = req.files.map((file) => `/uploads/${file.filename}`);
+
+    // req.files now contains buffers from multer.memoryStorage()
+    const uploads = await Promise.all(
+      (req.files || []).map((file) =>
+        uploadBufferToR2({
+          buffer: file.buffer,
+          mimetype: file.mimetype,
+          originalname: file.originalname,
+          userId: req.user.id,
+        })
+      )
+    );
+
+    const imageUrls = uploads.map((u) => u.url);
 
     const listing = await Listing.create({
       title,
@@ -54,16 +67,18 @@ export const createListing = async (req, res) => {
       originalPrice,
       salePrice,
       salePercentage,
-      imageUrl: imageUrls, // save as array
+      imageUrl: imageUrls, // array of public URLs
       seller: req.user.id,
     });
 
     res.status(201).json(listing);
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    console.error("createListing error:", err);
+    res
+      .status(500)
+      .json({ message: err.message || "Failed to create listing" });
   }
 };
-
 export const deleteListing = async (req, res) => {
   const listing = await Listing.findById(req.params.id);
   if (!listing) return res.status(404).json({ message: "Not found" });

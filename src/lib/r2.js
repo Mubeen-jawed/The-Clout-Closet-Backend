@@ -1,20 +1,26 @@
-// src/lib/r2.js
 import { S3Client } from "@aws-sdk/client-s3";
+import { ENV } from "../config/env.js";
 
 export const r2 = new S3Client({
   region: "auto",
-  endpoint: process.env.R2_ENDPOINT, // e.g. https://<accountid>.r2.cloudflarestorage.com
+  endpoint: ENV.R2_ENDPOINT,
+  forcePathStyle: true,
   credentials: {
-    accessKeyId: process.env.R2_ACCESS_KEY_ID,
-    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY,
+    accessKeyId: ENV.R2_ACCESS_KEY_ID,
+    secretAccessKey: ENV.R2_SECRET_ACCESS_KEY,
   },
 });
 
-/**
- * If you've mapped a custom/public domain (recommended), set:
- * R2_PUBLIC_BASE_URL=https://cdn.yourdomain.com
- * Otherwise you can use the R2 public bucket URL pattern if enabled.
- */
-export const R2_BUCKET = process.env.R2_BUCKET;
-export const publicUrlForKey = (key) =>
-  `${process.env.R2_PUBLIC_BASE_URL?.replace(/\/$/, "")}/${key}`;
+export const R2_BUCKET = ENV.R2_BUCKET;
+export const R2_ENDPOINT = ENV.R2_ENDPOINT;
+export const R2_PUBLIC_BASE_URL = ENV.R2_PUBLIC_BASE_URL;
+
+export const publicUrlForKey = (key) => {
+  const base = process.env.R2_PUBLIC_BASE_URL?.replace(/\/$/, "");
+  // If public base is set, don't include bucket in path
+  return base
+    ? `${base}/${key}`
+    : `${process.env.R2_ENDPOINT.replace(/\/$/, "")}/${
+        process.env.R2_BUCKET
+      }/${key}`;
+};

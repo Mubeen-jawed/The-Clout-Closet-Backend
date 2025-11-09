@@ -12,6 +12,7 @@ import Listing from "../models/Listing.js";
 
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage() });
+
 router.get("/", getListings);
 router.get("/:id", getListing);
 
